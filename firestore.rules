@@ -1,0 +1,241 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // District Domain Lock
+    // Restricted to verified @gonzales.k12.ca.us staff accounts.
+    // -------------------------------------------------------------------------
+    function allowedDomain() {
+      return 'gonzales.k12.ca.us';
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAllowedDomain() {
+      return allowedDomain() == '' || (
+        request.auth.token.email is string &&
+        request.auth.token.email.split('@').size() == 2 &&
+        request.auth.token.email.lower().split('@')[1] == allowedDomain().lower()
+      );
+    }
+
+    function isAuthorizedStaff() {
+      return isVerifiedUser() && isAllowedDomain();
+    }
+
+    function isBootstrappedAdmin() {
+      return isAuthorizedStaff() && request.auth.token.email.lower() == 'pdietrich@gonzales.k12.ca.us';
+    }
+
+    function isAdmin() {
+      return isAuthorizedStaff() && (
+        request.auth.token.email.lower() == 'pdietrich@gonzales.k12.ca.us' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isSeedCalendarId(id) {
+      return id in [
+        '6th-grade-math',
+        '6th-grade-science',
+        '6th-grade-social-studies',
+        '6th-grade-language-arts',
+        '7th-grade-math',
+        '7th-grade-science',
+        '7th-grade-social-studies',
+        '7th-grade-ela',
+        '8th-grade-math',
+        '8th-grade-science',
+        '8th-grade-social-studies',
+        '8th-grade-ela',
+        'vapa-art',
+        'vapa-cte',
+        'vapa-band',
+        'vapa-fms-spanish',
+        'vapa-fms-spanish-1',
+        '6th-grade-pe',
+        '7th-grade-pe',
+        '8th-grade-pe',
+        '6-8-sdc-ela-social-studies',
+        '6-8-sdc-math-science'
+      ];
+    }
+
+    function isValidCategory(cat) {
+      return cat in [
+        '6th Grade Core',
+        '7th Grade Core',
+        '8th Grade Core',
+        'VAPA',
+        'PE',
+        'SDC'
+      ];
+    }
+
+    function isValidCalendar(data, calendarId) {
+      return data.keys().hasAll([
+          'id', 'name', 'category', 'isScience', 'order', 'schoolYear',
+          'createdByUid', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'name', 'category', 'isScience', 'order', 'schoolYear',
+          'createdByUid', 'updatedBy', 'updatedAt'
+        ]) &&
+        data.id is string && data.id == calendarId &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        isValidCategory(data.category) &&
+        data.isScience is bool &&
+        data.order is int && data.order >= 0 && data.order <= 1000 &&
+        data.schoolYear == '2026-2027' &&
+        data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 120 &&
+        data.updatedAt is timestamp && data.updatedAt == request.time;
+    }
+
+    function isValidStandard(data) {
+      return data.keys().hasAll([
+          'calendarId', 'code', 'description', 'gradeLevel', 'domain',
+          'type', 'ngssModel', 'schoolYear', 'updatedBy', 'updatedByUid', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'calendarId', 'code', 'description', 'gradeLevel', 'domain',
+          'type', 'ngssModel', 'schoolYear', 'updatedBy', 'updatedByUid', 'updatedAt'
+        ]) &&
+        isValidId(data.calendarId) &&
+        data.code is string && data.code.size() >= 1 && data.code.size() <= 40 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 1500 &&
+        data.gradeLevel is string && data.gradeLevel.size() >= 1 && data.gradeLevel.size() <= 16 &&
+        data.domain is string && data.domain.size() >= 1 && data.domain.size() <= 120 &&
+        data.type in ['essential', 'supporting', 'prerequisite', 'unassigned'] &&
+        data.ngssModel in ['integrated', 'discipline-specific', 'both', 'none'] &&
+        data.schoolYear == '2026-2027' &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 120 &&
+        data.updatedByUid is string && data.updatedByUid == request.auth.uid &&
+        data.updatedAt is timestamp && data.updatedAt == request.time;
+    }
+
+    function isValidEntry(data, entryId) {
+      return data.keys().hasAll([
+          'calendarId', 'date', 'topic', 'notes', 'standardIds',
+          'schoolYear', 'updatedBy', 'updatedByUid', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'calendarId', 'date', 'topic', 'notes', 'dayTag', 'standardIds',
+          'schoolYear', 'updatedBy', 'updatedByUid', 'updatedAt'
+        ]) &&
+        isValidId(data.calendarId) &&
+        data.date is string && data.date.size() == 10 &&
+        data.date.matches('^202[6-7]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$') &&
+        entryId == (data.calendarId + '__' + data.date) &&
+        data.topic is string && data.topic.size() <= 160 &&
+        data.notes is string && data.notes.size() <= 2000 &&
+        (!('dayTag' in data) || (data.dayTag is string && data.dayTag.size() <= 32)) &&
+        data.standardIds is list && data.standardIds.size() <= 30 &&
+        (data.standardIds.size() == 0 || (data.standardIds[0] is string && data.standardIds[0].size() <= 128)) &&
+        data.schoolYear == '2026-2027' &&
+        data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 120 &&
+        data.updatedByUid is string && data.updatedByUid == request.auth.uid &&
+        data.updatedAt is timestamp && data.updatedAt == request.time;
+    }
+
+    function isValidAdmin(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'grantedBy', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'grantedBy', 'createdAt']) &&
+        isValidId(data.uid) && data.uid == uid &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 120 &&
+        data.grantedBy is string && data.grantedBy.size() >= 1 && data.grantedBy.size() <= 120 &&
+        data.createdAt is timestamp && data.createdAt == request.time;
+    }
+
+    match /calendars/{calendarId} {
+      allow get: if isAuthorizedStaff() && isValidId(calendarId);
+      allow list: if isAuthorizedStaff() && resource.data.schoolYear == '2026-2027';
+      allow create: if isAuthorizedStaff() &&
+        isValidId(calendarId) &&
+        isValidCalendar(incoming(), calendarId) &&
+        incoming().createdByUid == request.auth.uid &&
+        (isSeedCalendarId(calendarId) || isAdmin());
+      allow update: if isAdmin() &&
+        isValidId(calendarId) &&
+        isValidCalendar(incoming(), calendarId) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().schoolYear == existing().schoolYear &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'name', 'category', 'isScience', 'order', 'updatedBy', 'updatedAt'
+        ]);
+      allow delete: if isAdmin() && isValidId(calendarId);
+    }
+
+    match /standards/{standardId} {
+      allow get: if isAuthorizedStaff() && isValidId(standardId);
+      allow list: if isAuthorizedStaff() && resource.data.schoolYear == '2026-2027';
+      allow create: if isAuthorizedStaff() &&
+        isValidId(standardId) &&
+        isValidStandard(incoming()) &&
+        exists(/databases/$(database)/documents/calendars/$(incoming().calendarId));
+      allow update: if isAuthorizedStaff() &&
+        isValidId(standardId) &&
+        isValidStandard(incoming()) &&
+        incoming().calendarId == existing().calendarId &&
+        incoming().schoolYear == existing().schoolYear &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['type', 'updatedBy', 'updatedByUid', 'updatedAt']) ||
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'code', 'description', 'gradeLevel', 'domain', 'type', 'ngssModel',
+            'updatedBy', 'updatedByUid', 'updatedAt'
+          ])
+        );
+      allow delete: if isAuthorizedStaff() && isValidId(standardId);
+    }
+
+    match /entries/{entryId} {
+      allow get: if isAuthorizedStaff() && isValidId(entryId);
+      allow list: if isAuthorizedStaff() && resource.data.schoolYear == '2026-2027';
+      allow create: if isAuthorizedStaff() &&
+        isValidId(entryId) &&
+        isValidEntry(incoming(), entryId) &&
+        exists(/databases/$(database)/documents/calendars/$(incoming().calendarId));
+      allow update: if isAuthorizedStaff() &&
+        isValidId(entryId) &&
+        isValidEntry(incoming(), entryId) &&
+        incoming().calendarId == existing().calendarId &&
+        incoming().date == existing().date &&
+        incoming().schoolYear == existing().schoolYear &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'topic', 'notes', 'dayTag', 'standardIds', 'updatedBy', 'updatedByUid', 'updatedAt'
+        ]);
+      allow delete: if isAuthorizedStaff() && isValidId(entryId);
+    }
+
+    match /admins/{uid} {
+      allow get: if isAuthorizedStaff() && isValidId(uid) && (request.auth.uid == uid || isAdmin());
+      allow list: if isBootstrappedAdmin() || (isAuthorizedStaff() && resource.data.uid == request.auth.uid);
+      allow create: if isAdmin() && isValidId(uid) && isValidAdmin(incoming(), uid);
+      allow update: if false;
+      allow delete: if isAdmin() && isValidId(uid) && uid != request.auth.uid;
+    }
+  }
+}

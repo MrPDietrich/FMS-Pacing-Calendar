@@ -1,0 +1,286 @@
+{
+  "entities": {
+    "Calendar": {
+      "title": "Calendar",
+      "description": "A department or grade-level pacing calendar for the 2026-2027 school year.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique slug identifier for the calendar."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Display name of the course or department calendar."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "6th Grade Core",
+            "7th Grade Core",
+            "8th Grade Core",
+            "VAPA",
+            "PE",
+            "SDC"
+          ],
+          "description": "Navigation category grouping for the calendar."
+        },
+        "isScience": {
+          "type": "boolean",
+          "description": "Whether this calendar supports CA NGSS Integrated vs Discipline-Specific model filtering."
+        },
+        "order": {
+          "type": "integer",
+          "description": "Display sort order within the calendar switcher."
+        },
+        "schoolYear": {
+          "type": "string",
+          "enum": ["2026-2027"],
+          "description": "Active academic school year."
+        },
+        "createdByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "UID of the staff or admin user who created the calendar."
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Display name or email of the last user to modify this calendar."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last update."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "category",
+        "isScience",
+        "order",
+        "schoolYear",
+        "createdByUid",
+        "updatedBy",
+        "updatedAt"
+      ]
+    },
+    "Standard": {
+      "title": "Standard",
+      "description": "An academic standard assigned to a specific calendar with Essential, Supporting, Prerequisite, or Unassigned classification.",
+      "type": "object",
+      "properties": {
+        "calendarId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "ID of the parent calendar document."
+        },
+        "code": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Standard code such as 7.NS.A.1 or MS-PS1-1."
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1500,
+          "description": "Full text description of the standard."
+        },
+        "gradeLevel": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16,
+          "description": "Grade level of the standard (e.g., 5, 6, 7, 8)."
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Subject domain or strand name."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["essential", "supporting", "prerequisite", "unassigned"],
+          "description": "Triage classification of the standard."
+        },
+        "ngssModel": {
+          "type": "string",
+          "enum": ["integrated", "discipline-specific", "both", "none"],
+          "description": "CA NGSS course model for Science standards."
+        },
+        "schoolYear": {
+          "type": "string",
+          "enum": ["2026-2027"],
+          "description": "Active academic school year."
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Display name or email of the user who last classified or edited this standard."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the user who last updated this standard."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last update."
+        }
+      },
+      "required": [
+        "calendarId",
+        "code",
+        "description",
+        "gradeLevel",
+        "domain",
+        "type",
+        "ngssModel",
+        "schoolYear",
+        "updatedBy",
+        "updatedByUid",
+        "updatedAt"
+      ]
+    },
+    "Entry": {
+      "title": "Entry",
+      "description": "A daily pacing entry for a specific calendar and date (YYYY-MM-DD).",
+      "type": "object",
+      "properties": {
+        "calendarId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "ID of the parent calendar document."
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10,
+          "pattern": "^202[6-7]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
+          "description": "ISO date string in YYYY-MM-DD format within 2026-2027."
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 160,
+          "description": "Short lesson or pacing topic title."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 2000,
+          "description": "Optional brief details, PLC notes, or resource links."
+        },
+        "dayTag": {
+          "type": "string",
+          "minLength": 0,
+          "maxLength": 32,
+          "description": "Optional day type or assessment indicator (Flex Day, Activity, CFA, PM1, BM1, CA, etc.)."
+        },
+        "standardIds": {
+          "type": "array",
+          "description": "Array of tagged standard document IDs (max 30)."
+        },
+        "schoolYear": {
+          "type": "string",
+          "enum": ["2026-2027"],
+          "description": "Active academic school year."
+        },
+        "updatedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Display name or email of the user who last edited this entry."
+        },
+        "updatedByUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Firebase Auth UID of the user who last updated this entry."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last update."
+        }
+      },
+      "required": [
+        "calendarId",
+        "date",
+        "topic",
+        "notes",
+        "standardIds",
+        "schoolYear",
+        "updatedBy",
+        "updatedByUid",
+        "updatedAt"
+      ]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Explicitly granted admin record keyed by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the admin user."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 120,
+          "description": "Verified email address of the admin user."
+        },
+        "grantedBy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "description": "Email or name of the admin who granted access."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin access was granted."
+        }
+      },
+      "required": ["uid", "email", "grantedBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/calendars/{calendarId}": {
+      "schema": { "$ref": "#/entities/Calendar" },
+      "description": "Department and grade-level pacing calendars for 2026-2027."
+    },
+    "/standards/{standardId}": {
+      "schema": { "$ref": "#/entities/Standard" },
+      "description": "Standards catalog keyed by calendarId."
+    },
+    "/entries/{entryId}": {
+      "schema": { "$ref": "#/entities/Entry" },
+      "description": "Daily pacing entries keyed deterministically as {calendarId}__{YYYY-MM-DD}."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin role grants keyed by user UID."
+    }
+  }
+}
